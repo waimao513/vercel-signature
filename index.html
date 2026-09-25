@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solicitação de Devolução</title>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; color: #222; line-height: 1.6; padding: 20px; }
+.container { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 24px; text-align: center; margin-bottom: 4px; }
+.subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 24px; }
+.card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.card h2 { font-size: 16px; margin-bottom: 14px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+label { display: block; margin-bottom: 12px; font-size: 14px; color: #444; }
+input[type="text"], input[type="password"], textarea { width: 100%; padding: 10px 12px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; font-family: inherit; }
+input:focus, textarea:focus { outline: none; border-color: #2b7cff; }
+input.error { border-color: #e74c3c; }
+textarea { resize: vertical; line-height: 1.6; }
+.readonly-grid { font-size: 14px; line-height: 1.9; }
+.readonly-grid span { color: #888; }
+.terms { font-size: 14px; color: #333; }
+.terms p { margin-bottom: 8px; }
+.forwarder { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #ddd; font-size: 13px; color: #555; }
+.signature-wrapper { border: 2px dashed #ccc; border-radius: 8px; background: #fafafa; margin-bottom: 12px; }
+#signatureCanvas { width: 100%; height: 180px; display: block; touch-action: none; }
+.sig-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.sig-tab { flex: 1; padding: 8px; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.sig-tab.active { background: #2b7cff; color: #fff; border-color: #2b7cff; }
+.typed-sig { font-family: 'Brush Script MT', cursive; font-size: 36px; padding: 20px; text-align: center; background: #fff; border: 1px solid #ddd; border-radius: 6px; min-height: 100px; display: flex; align-items: center; justify-content: center; color: #1a1a1a; }
+.btn-primary, .btn-secondary { border: none; border-radius: 6px; font-size: 15px; padding: 12px 20px; cursor: pointer; transition: background 0.2s; font-family: inherit; }
+.btn-primary { width: 100%; background: #2b7cff; color: #fff; margin-top: 16px; font-weight: 600; }
+.btn-primary:hover:not(:disabled) { background: #1a63d9; }
+.btn-primary:disabled { background: #b8c9e0; cursor: not-allowed; }
+.btn-secondary { background: #eee; color: #555; font-size: 13px; padding: 8px 16px; }
+.checkbox-label { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #444; margin-top: 16px; line-height: 1.5; cursor: pointer; }
+.checkbox-label input { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; }
+.done-box { margin-top: 20px; padding: 20px; background: #eafaf1; border: 1px solid #b7e4c7; border-radius: 8px; text-align: center; }
+.done-box p:first-child { font-size: 18px; font-weight: 600; color: #2ecc71; margin-bottom: 8px; }
+.done-box .small { font-size: 13px; color: #555; line-height: 1.6; white-space: pre-line; }
+.hidden { display: none !important; }
+.error-text { color: #e74c3c; font-size: 13px; margin-top: 8px; }
+.admin-actions { display: flex; gap: 12px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+.admin-actions .btn-primary { width: auto; margin-top: 0; padding: 12px 32px; }
+.save-status { font-size: 14px; color: #2ecc71; }
+.save-status.error { color: #e74c3c; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
+th { background: #f8f9fa; font-weight: 600; }
+.dl-btn { background: #2b7cff; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.nav { text-align: center; margin-bottom: 20px; font-size: 13px; }
+.nav a { color: #2b7cff; text-decoration: none; margin: 0 8px; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="#" onclick="showClient(); return false;">客户页</a> |
+  <a href="#admin" onclick="showAdmin(); return false;">管理页</a>
+</div>
+
+<!-- ============ 客户页 ============ -->
+<div id="clientPage" class="container">
+  <h1 id="pageTitle">加载中...</h1>
+  <p class="subtitle" id="pageSubtitle"></p>
+
+  <section class="card">
+    <h2>您的信息 / Seus Dados</h2>
+    <label>姓名 / Nome <input type="text" id="customerName"></label>
+    <label>CPF <input type="text" id="customerCpf" maxlength="14" inputmode="numeric"></label>
+    <label>地址 / Endereço <input type="text" id="customerAddress"></label>
+  </section>
+
+  <section class="card">
+    <h2>货物信息 / Informações da Mercadoria</h2>
+    <div class="readonly-grid">
+      <div><span>原发票号 / Fatura:</span> <b id="gInvoice">—</b></div>
+      <div><span>提单号 / BL:</span> <b id="gBl">—</b></div>
+      <div><span>货物描述 / Descrição:</span> <b id="gDesc">—</b></div>
+      <div><span>数量 / Quantidade:</span> <b id="gQty">—</b></div>
+      <div><span>价值 / Valor:</span> <b id="gValue">—</b></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>申请内容 / Solicitação</h2>
+    <div class="terms" id="termsBox"></div>
+    <p class="forwarder">
+      <strong>货代 / Despachante:</strong> <span id="fwdName">—</span><br>
+      <strong>出口商 / Exportador:</strong> <span id="expName">—</span>
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>签名 / Assinatura</h2>
+    <div class="sig-tabs">
+      <button type="button" class="sig-tab active" onclick="switchSigTab('draw')">手写 / Desenhar</button>
+      <button type="button" class="sig-tab" onclick="switchSigTab('type')">键入 / Digitar</button>
+    </div>
+
+    <div id="drawBox">
+      <div class="signature-wrapper"><canvas id="signatureCanvas"></canvas></div>
+      <button type="button" id="clearBtn" class="btn-secondary">清除 / Limpar</button>
+    </div>
+
+    <div id="typeBox" class="hidden">
+      <label>输入姓名 / Digite seu nome
+        <input type="text" id="typedName" placeholder="João Carlos Silva">
+      </label>
+      <div class="typed-sig" id="typedPreview">—</div>
+    </div>
+
+    <label class="checkbox-label">
+      <input type="checkbox" id="agreeCheck">
+      <span id="confirmText"></span>
+    </label>
+
+    <button type="button" id="submitBtn" class="btn-primary" disabled>提交申请 / Enviar</button>
+
+    <div id="doneBox" class="done-box hidden">
+      <p>✓ 提交成功 / Enviado</p>
+      <p class="small" id="doneMessage"></p>
+      <button type="button" id="downloadBtn" class="btn-primary" style="margin-top:16px;">下载 PDF / Baixar PDF</button>
+    </div>
+  </section>
+</div>
+
+<!-- ============ 管理页 ============ -->
+<div id="loginBox" class="container hidden">
+  <div class="card" style="max-width:400px;margin:80px auto;">
+    <h2>管理登录 / Admin Login</h2>
+    <label>密码 / Senha <input type="password" id="passwordInput"></label>
+    <button type="button" id="loginBtn" class="btn-primary">登录 / Entrar</button>
+    <p id="loginError" class="error-text hidden">密码错误 / Senha incorreta</p>
+  </div>
+</div>
+
+<div id="adminPage" class="container hidden">
+  <h1>模板管理 + 提交记录</h1>
+
+  <section class="card">
+    <h2>标题</h2>
+    <label>主标题 <input type="text" id="tTitle"></label>
+    <label>副标题 <input type="text" id="tSubtitle"></label>
+  </section>
+
+  <section class="card">
+    <h2>甲方 / 出口商</h2>
+    <label>公司名称 <input type="text" id="tExporterName"></label>
+    <label>地址 <input type="text" id="tExporterAddress"></label>
+  </section>
+
+  <section class="card">
+    <h2>货代 / Despachante</h2>
+    <label>货代公司名称 <input type="text" id="tFwdName"></label>
+  </section>
+
+  <section class="card">
+    <h2>货物信息</h2>
+    <label>发票号 <input type="text" id="tInvoice"></label>
+    <label>提单号 <input type="text" id="tBl"></label>
+    <label>描述 <input type="text" id="tDesc"></label>
+    <label>数量 <input type="text" id="tQty"></label>
+    <label>价值 <input type="text" id="tValue"></label>
+  </section>
+
+  <section class="card">
+    <h2>申请条款（每行一条）</h2>
+    <textarea id="tTerms" rows="8"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>文案</h2>
+    <label>勾选框文字 <input type="text" id="tConfirmText"></label>
+    <label>完成提示 <textarea id="tDoneMessage" rows="3"></textarea></label>
+  </section>
+
+  <div class="admin-actions">
+    <button type="button" id="saveBtn" class="btn-primary">保存 / Salvar</button>
+    <button type="button" id="logoutBtn" class="btn-secondary">退出</button>
+    <span id="saveStatus" class="save-status"></span>
+  </div>
+
+  <section class="card" style="margin-top:24px;">
+    <h2>提交记录</h2>
+    <div id="submissionsBox">加载中...</div>
+  </section>
+</div>
+
+<script>
+// ==================== 状态 ====================
+let template = null;
+let signaturePad = null;
+let currentSigTab = 'draw';
+let token = sessionStorage.getItem('admin_token') || '';
+let lastPdfBlob = null;
+
+// ==================== 工具 ====================
+function $(id) { return document.getElementById(id); }
+
+function formatCpf(v) {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  return d.replace(/(\d{3})(\d)/, '$1.$2')
+          .replace(/(\d{3})(\d)/, '$1.$2')
+          .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
+function isValidCpf(cpf) {
+  const d = cpf.replace(/\D/g, '');
+  if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
+  const calc = (len) => {
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += parseInt(d[i]) * (len + 1 - i);
+    const r = (sum * 10) % 11;
+    return r === 10 ? 0 : r;
+  };
+  return calc(9) === parseInt(d[9]) && calc(10) === parseInt(d[10]);
+}
+
+// ==================== 路由 ====================
+function showClient() {
+  $('clientPage').classList.remove('hidden');
+  $('loginBox').classList.add('hidden');
+  $('adminPage').classList.add('hidden');
+  history.replaceState(null, '', location.pathname);
+}
+
+function showAdmin() {
+  $('clientPage').classList.add('hidden');
+  location.hash = 'admin';
+  if (token) {
+    $('loginBox').classList.add('hidden');
+    $('adminPage').classList.remove('hidden');
+    loadAdminData();
+  } else {
+    $('loginBox').classList.remove('hidden');
+    $('adminPage').classList.add('hidden');
+  }
+}
+
+// ==================== 客户页 ====================
+async function loadTemplate() {
+  try {
+    const res = await fetch('/api/data?action=template');
+    template = await res.json();
+    renderTemplate();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderTemplate() {
+  document.title = template.title;
+  $('pageTitle').textContent = template.title;
+  $('pageSubtitle').textContent = template.subtitle;
+
+  const p = new URLSearchParams(location.search);
+  const g = template.goods;
+  $('gInvoice').textContent = p.get('invoice') || g.invoice;
+  $('gBl').textContent = p.get('bl') || g.bl;
+  $('gDesc').textContent = p.get('desc') || g.description;
+  $('gQty').textContent = p.get('qty') || g.quantity;
+  $('gValue').textContent = p.get('value') || g.value;
+
+  const tb = $('termsBox');
+  tb.innerHTML = '';
+  template.terms.forEach(t => {
+    const el = document.createElement('p');
+    el.textContent = t;
+    tb.appendChild(el);
+  });
+
+  $('fwdName').textContent = template.forwarder.name;
+  $('expName').textContent = template.exporter.name;
+  $('confirmText').textContent = template.confirmText;
+  $('doneMessage').textContent = template.doneMessage;
+}
+
+function initSignaturePad() {
+  const canvas = $('signatureCanvas');
+  const ratio = Math.max(window.devicePixelRatio || 1, 1);
+  canvas.width = canvas.offsetWidth * ratio;
+  canvas.height = canvas.offsetHeight * ratio;
+  canvas.getContext('2d').scale(ratio, ratio);
+
+  signaturePad = new SignaturePad(canvas, {
+    backgroundColor: 'rgba(255,255,255,0)',
+    penColor: '#1a1a1a'
+  });
+  signaturePad.addEventListener('endStroke', checkFormReady);
+
+  window.addEventListener('resize', () => {
+    const data = signaturePad.toData();
+    const r = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width = canvas.offsetWidth * r;
+    canvas.height = canvas.offsetHeight * r;
+    canvas.getContext('2d').scale(r, r);
+    signaturePad.clear();
+    signaturePad.fromData(data);
+  });
+}
+
+function switchSigTab(tab) {
+  currentSigTab = tab;
+  document.querySelectorAll('.sig-tab').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+  $('drawBox').classList.toggle('hidden', tab !== 'draw');
+  $('typeBox').classList.toggle('hidden', tab !== 'type');
+  checkFormReady();
+}
+
+function getSignatureDataUrl() {
+  if (currentSigTab === 'draw') {
+    if (signaturePad.isEmpty()) return null;
+    return signaturePad.toDataURL('image/png');
+  } else {
+    const name = $('typedName').value.trim();
+    if (!name) return null;
+    // 用 Canvas 渲染键入签名为图片
+    const c = document.createElement('canvas');
+    c.width = 400; c.height = 120;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, 400, 120);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.font = '48px "Brush Script MT", cursive';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name, 200, 60);
+    return c.toDataURL('image/png');
+  }
+}
+
+function checkFormReady() {
+  const name = $('customerName').value.trim();
+  const cpf = $('customerCpf').value.trim();
+  const address = $('customerAddress').value.trim();
+  const agreed = $('agreeCheck').checked;
+  const hasSig = !!getSignatureDataUrl();
+  $('submitBtn').disabled = !(name && cpf && address && agreed && hasSig);
+}
+
+// ==================== PDF 生成 ====================
+function generatePdf() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  const name = $('customerName').value.trim();
+  const cpf = $('customerCpf').value.trim();
+  const address = $('customerAddress').value.trim();
+  const sigData = getSignatureDataUrl();
+  const now = new Date();
+
+  const margin = 18;
+  let y = 20;
+
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(template.subtitle, 105, y, { align: 'center' });
+  y += 7;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(template.title, 105, y, { align: 'center' });
+  y += 12;
+
+  doc.setDrawColor(200);
+  doc.line(margin, y, 210 - margin, y);
+  y += 10;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Exportador', margin, y); y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.text(template.exporter.name, margin, y); y += 5;
+  doc.text(template.exporter.address, margin, y); y += 10;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Importador', margin, y); y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Nome: ${name}`, margin, y); y += 5;
+  doc.text(`CPF: ${cpf}`, margin, y); y += 5;
+  doc.text(`Endereco: ${address}`, margin, y); y += 10;
+
+  doc.setDrawColor(200);
+  doc.line(margin, y, 210 - margin, y);
+  y += 10;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Informacoes da Mercadoria', margin, y); y += 6;
+  doc.setFont('helvetica', 'normal');
+  const g = template.goods;
+  const p = new URLSearchParams(location.search);
+  doc.text(`Fatura: ${p.get('invoice') || g.invoice}`, margin, y); y += 5;
+  doc.text(`BL: ${p.get('bl') || g.bl}`, margin, y); y += 5;
+  doc.text(`Descricao: ${p.get('desc') || g.description}`, margin, y); y += 5;
+  doc.text(`Quantidade: ${p.get('qty') || g.quantity}`, margin, y); y += 5;
+  doc.text(`Valor: ${p.get('value') || g.value}`, margin, y); y += 10;
+
+  doc.setDrawColor(200);
+  doc.line(margin, y, 210 - margin, y);
+  y += 10;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Solicitacao', margin, y); y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+
+  template.terms.forEach(t => {
+    const lines = doc.splitTextToSize(t, 210 - margin * 2);
+    doc.text(lines, margin, y);
+    y += lines.length * 5 + 2;
+  });
+
+  y += 6;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Despachante', margin, y); y += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(template.forwarder.name, margin, y); y += 12;
+
+  doc.setDrawColor(200);
+  doc.line(margin, y, 210 - margin, y);
+  y += 10;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Assinatura do Importador', margin, y); y += 8;
+
+  doc.addImage(sigData, 'PNG', margin, y, 60, 25);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(name, margin, y + 29);
+  doc.text(`CPF: ${cpf}`, margin, y + 33);
+  doc.setFontSize(9);
+  doc.text('[X] Confirmo que li e concordo', margin + 70, y + 10);
+
+  y += 45;
+
+  doc.setDrawColor(220);
+  doc.line(margin, y, 210 - margin, y);
+  y += 6;
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  const ts = now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  doc.text(`Data: ${ts} (BRT)`, margin, y); y += 4;
+  doc.text(`IP: ${window._clientIp || 'N/A'}`, margin, y); y += 4;
+  doc.text(`ID: ${window._docId || 'N/A'}`, margin, y);
+
+  return doc;
+}
+
+// ==================== 提交 ====================
+async function handleSubmit() {
+  const cpf = $('customerCpf').value.trim();
+  if (!isValidCpf(cpf)) {
+    alert('CPF invalido / CPF 格式无效');
+    $('customerCpf').classList.add('error');
+    return;
+  }
+  if (!getSignatureDataUrl()) {
+    alert('Por favor, assine primeiro. / 请先签名。');
+    return;
+  }
+
+  $('submitBtn').disabled = true;
+  $('submitBtn').textContent = '提交中... / Enviando...';
+
+  // 获取 IP
+  try {
+    const ipRes = await fetch('https://api.ipify.org?format=json');
+    window._clientIp = (await ipRes.json()).ip;
+  } catch { window._clientIp = 'unknown'; }
+
+  window._docId = `REQ-${Date.now()}`;
+
+  const doc = generatePdf();
+  lastPdfBlob = doc.output('blob');
+  const pdfBase64 = await blobToBase64(lastPdfBlob);
+
+  // 提交到后台
+  try {
+    await fetch('/api/data?action=submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'submit',
+        customerName: $('customerName').value.trim(),
+        customerCpf: cpf,
+        customerAddress: $('customerAddress').value.trim(),
+        ip: window._clientIp,
+        pdfBase64,
+        submittedAt: new Date().toISOString()
+      })
+    });
+  } catch (e) {
+    console.error('提交失败', e);
+  }
+
+  // 禁用表单
+  document.querySelectorAll('#clientPage input, #clientPage canvas').forEach(el => el.disabled = true);
+  if (signaturePad) signaturePad.off();
+  $('clearBtn').classList.add('hidden');
+  $('submitBtn').classList.add('hidden');
+  $('doneBox').classList.remove('hidden');
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function downloadPdf() {
+  if (!lastPdfBlob) return;
+  const url = URL.createObjectURL(lastPdfBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `solicitacao-${Date.now()}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ==================== 管理页 ====================
+async function login(pwd) {
+  const res = await fetch('/api/data?action=template', {
+    headers: { 'Authorization': `Bearer ${pwd}` }
+  });
+  // 用一个需要鉴权的请求来验证密码
+  const test = await fetch('/api/data?action=submissions', {
+    headers: { 'Authorization': `Bearer ${pwd}` }
+  });
+  if (test.ok) {
+    token = pwd;
+    sessionStorage.setItem('admin_token', token);
+    return true;
+  }
+  return false;
+}
+
+async function loadAdminData() {
+  // 模板
+  const res = await fetch('/api/data?action=template');
+  const t = await res.json();
+  $('tTitle').value = t.title || '';
+  $('tSubtitle').value = t.subtitle || '';
+  $('tExporterName').value = t.exporter?.name || '';
+  $('tExporterAddress').value = t.exporter?.address || '';
+  $('tFwdName').value = t.forwarder?.name || '';
+  $('tInvoice').value = t.goods?.invoice || '';
+  $('tBl').value = t.goods?.bl || '';
+  $('tDesc').value = t.goods?.description || '';
+  $('tQty').value = t.goods?.quantity || '';
+  $('tValue').value = t.goods?.value || '';
+  $('tTerms').value = (t.terms || []).join('\n');
+  $('tConfirmText').value = t.confirmText || '';
+  $('tDoneMessage').value = t.doneMessage || '';
+
+  loadSubmissions();
+}
+
+async function loadSubmissions() {
+  const box = $('submissionsBox');
+  box.textContent = '加载中...';
+  try {
+    const res = await fetch('/api/data?action=submissions', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) { box.textContent = '加载失败'; return; }
+    const { submissions } = await res.json();
+    if (!submissions.length) { box.textContent = '暂无提交记录'; return; }
+
+    let html = '<table><thead><tr><th>时间</th><th>姓名</th><th>CPF</th><th>IP</th><th>操作</th></tr></thead><tbody>';
+    submissions.forEach(s => {
+      const time = new Date(s.submittedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      html += `<tr>
+        <td>${time}</td>
+        <td>${escapeHtml(s.customerName)}</td>
+        <td>${escapeHtml(s.customerCpf)}</td>
+        <td>${escapeHtml(s.ip)}</td>
+        <td><button class="dl-btn" onclick="downloadSubmission('${s.id}')">下载</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  } catch {
+    box.textContent = '加载失败';
+  }
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+async function downloadSubmission(id) {
+  const res = await fetch(`/api/data?action=pdf&id=${id}&token=${encodeURIComponent(token)}`);
+  if (!res.ok) { alert('下载失败'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `solicitacao-${id}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function saveTemplate() {
+  const status = $('saveStatus');
+  status.textContent = '保存中...';
+  status.classList.remove('error');
+
+  const data = {
+    title: $('tTitle').value,
+    subtitle: $('tSubtitle').value,
+    exporter: {
+      name: $('tExporterName').value,
+      address: $('tExporterAddress').value
+    },
+    forwarder: { name: $('tFwdName').value },
+    goods: {
+      invoice: $('tInvoice').value,
+      bl: $('tBl').value,
+      description: $('tDesc').value,
+      quantity: $('tQty').value,
+      value: $('tValue').value
+    },
+    terms: $('tTerms').value.split('\n').filter(l => l.trim()),
+    confirmText: $('tConfirmText').value,
+    doneMessage: $('tDoneMessage').value
+  };
+
+  const res = await fetch('/api/data', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ action: 'template', data })
+  });
+
+  if (res.ok) {
+    status.textContent = '✓ 已保存';
+    setTimeout(() => status.textContent = '', 3000);
+  } else {
+    status.textContent = '保存失败';
+    status.classList.add('error');
+  }
+}
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadTemplate();
+  initSignaturePad();
+
+  // 路由
+  if (location.hash === '#admin') showAdmin(); else showClient();
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#admin') showAdmin(); else showClient();
+  });
+
+  // 客户页事件
+  $('customerCpf').addEventListener('input', e => {
+    e.target.value = formatCpf(e.target.value);
+    e.target.classList.remove('error');
+    checkFormReady();
+  });
+  ['customerName', 'customerAddress'].forEach(id => {
+    $(id).addEventListener('input', checkFormReady);
+  });
+  $('typedName').addEventListener('input', () => {
+    $('typedPreview').textContent = $('typedName').value || '—';
+    checkFormReady();
+  });
+  $('agreeCheck').addEventListener('change', checkFormReady);
+  $('clearBtn').addEventListener('click', () => { signaturePad.clear(); checkFormReady(); });
+  $('submitBtn').addEventListener('click', handleSubmit);
+  $('downloadBtn').addEventListener('click', downloadPdf);
+
+  // 管理页事件
+  $('loginBtn').addEventListener('click', async () => {
+    const pwd = $('passwordInput').value;
+    if (await login(pwd)) {
+      $('loginBox').classList.add('hidden');
+      $('adminPage').classList.remove('hidden');
+      loadAdminData();
+    } else {
+      $('loginError').classList.remove('hidden');
+    }
+  });
+  $('passwordInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') $('loginBtn').click();
+  });
+  $('saveBtn').addEventListener('click', saveTemplate);
+  $('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem('admin_token');
+    token = '';
+    $('loginBox').classList.remove('hidden');
+    $('adminPage').classList.add('hidden');
+  });
+});
+
+// 暴露给 inline onclick
+window.switchSigTab = switchSigTab;
+window.showClient = showClient;
+window.showAdmin = showAdmin;
+window.downloadSubmission = downloadSubmission;
+</script>
+</body>
+</html>
