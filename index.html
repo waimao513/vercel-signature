@@ -35,6 +35,9 @@ textarea { resize: vertical; line-height: 1.6; }
 .btn-primary:hover:not(:disabled) { background: #1a63d9; }
 .btn-primary:disabled { background: #b8c9e0; cursor: not-allowed; }
 .btn-secondary { background: #eee; color: #555; font-size: 13px; padding: 8px 16px; }
+.btn-small { background: #2b7cff; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-small.danger { background: #e74c3c; }
+.btn-small.copy { background: #27ae60; }
 .checkbox-label { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #444; margin-top: 16px; line-height: 1.5; cursor: pointer; }
 .checkbox-label input { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; }
 .done-box { margin-top: 20px; padding: 20px; background: #eafaf1; border: 1px solid #b7e4c7; border-radius: 8px; text-align: center; }
@@ -49,14 +52,17 @@ textarea { resize: vertical; line-height: 1.6; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
 th { background: #f8f9fa; font-weight: 600; }
-.dl-btn { background: #2b7cff; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
 .hint { font-size: 12px; color: #888; margin-top: -6px; margin-bottom: 10px; }
+.status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+.status-pending { background: #fff3cd; color: #856404; }
+.status-signed { background: #d4edda; color: #155724; }
+.link-text { font-family: monospace; font-size: 12px; color: #2b7cff; word-break: break-all; }
 </style>
 </head>
 <body>
 
-<!-- ============ 客户页（纯葡语） ============ -->
-<div id="clientPage" class="container">
+<!-- ============ 客户页 ============ -->
+<div id="clientPage" class="container hidden">
   <h1 id="pageTitle">Carregando...</h1>
   <p class="subtitle" id="pageSubtitle"></p>
 
@@ -121,6 +127,15 @@ th { background: #f8f9fa; font-weight: 600; }
   </section>
 </div>
 
+<!-- 会话不存在提示 -->
+<div id="notFoundPage" class="container hidden">
+  <div class="card" style="max-width:500px;margin:80px auto;text-align:center;">
+    <h2>Link inválido</h2>
+    <p>Este link não é válido ou expirou.</p>
+    <p style="color:#888;font-size:13px;margin-top:10px;">Por favor, entre em contato com seu contato comercial.</p>
+  </div>
+</div>
+
 <!-- ============ 管理页（中文） ============ -->
 <div id="loginBox" class="container hidden">
   <div class="card" style="max-width:400px;margin:80px auto;">
@@ -132,85 +147,61 @@ th { background: #f8f9fa; font-weight: 600; }
 </div>
 
 <div id="adminPage" class="container hidden">
-  <h1>模板管理 + 提交记录</h1>
+  <h1>管理后台</h1>
 
+  <!-- 会话管理 -->
   <section class="card">
-    <h2>标题</h2>
-    <label>主标题（客户页顶部大字）
-      <input type="text" id="tTitle">
-    </label>
-    <label>副标题（客户页顶部小字）
-      <input type="text" id="tSubtitle">
-    </label>
+    <h2>新建会话（一票货一个链接）</h2>
+    <label>发票号 <input type="text" id="nInvoice"></label>
+    <label>提单号 <input type="text" id="nBl"></label>
+    <label>货物描述 <input type="text" id="nDesc"></label>
+    <label>数量 <input type="text" id="nQty"></label>
+    <label>价值 <input type="text" id="nValue"></label>
+    <label>备注（仅你们自己看） <input type="text" id="nNote"></label>
+    <button type="button" id="createSessionBtn" class="btn-primary">创建并生成链接</button>
+    <p id="createStatus" class="save-status"></p>
   </section>
 
   <section class="card">
-    <h2>出口商信息</h2>
-    <label>公司名称
-      <input type="text" id="tExporterName">
-    </label>
-    <label>公司地址
-      <input type="text" id="tExporterAddress">
-    </label>
+    <h2>会话列表</h2>
+    <p class="hint">每行对应一个客户链接。状态：未签 / 已签。点「复制链接」发给客户。</p>
+    <div id="sessionsBox">加载中...</div>
   </section>
 
+  <!-- 模板管理 -->
   <section class="card">
-    <h2>货代信息</h2>
-    <label>货代公司名称
-      <input type="text" id="tFwdName">
+    <h2>通用文案模板</h2>
+    <p class="hint">这里修改的内容对所有链接生效。每票货不同的信息请在「新建会话」里填。</p>
+    <label>主标题 <input type="text" id="tTitle"></label>
+    <label>副标题 <input type="text" id="tSubtitle"></label>
+    <label>出口商名称 <input type="text" id="tExporterName"></label>
+    <label>出口商地址 <input type="text" id="tExporterAddress"></label>
+    <label>货代公司名称 <input type="text" id="tFwdName"></label>
+    <label>申请条款（每行一条，用葡语写）
+      <textarea id="tTerms" rows="10"></textarea>
     </label>
+    <label>勾选框文字 <input type="text" id="tConfirmText"></label>
+    <label>完成提示 <textarea id="tDoneMessage" rows="3"></textarea></label>
+    <div class="admin-actions">
+      <button type="button" id="saveTemplateBtn" class="btn-primary">保存模板</button>
+      <span id="saveStatus" class="save-status"></span>
+    </div>
   </section>
 
+  <!-- 提交记录 -->
   <section class="card">
-    <h2>货物信息</h2>
-    <label>发票号
-      <input type="text" id="tInvoice">
-    </label>
-    <label>提单号
-      <input type="text" id="tBl">
-    </label>
-    <label>货物描述
-      <input type="text" id="tDesc">
-    </label>
-    <label>数量
-      <input type="text" id="tQty">
-    </label>
-    <label>价值
-      <input type="text" id="tValue">
-    </label>
-  </section>
-
-  <section class="card">
-    <h2>申请条款（每行一条，用葡语写）</h2>
-    <p class="hint">每条会自动生成一个段落，客户看到的就是这些内容。建议用葡语填写。</p>
-    <textarea id="tTerms" rows="10"></textarea>
-  </section>
-
-  <section class="card">
-    <h2>文案</h2>
-    <label>勾选框文字（客户签名下方那句）
-      <input type="text" id="tConfirmText">
-    </label>
-    <label>完成提示（客户提交成功后显示）
-      <textarea id="tDoneMessage" rows="3"></textarea>
-    </label>
+    <h2>提交记录</h2>
+    <div id="submissionsBox">加载中...</div>
   </section>
 
   <div class="admin-actions">
-    <button type="button" id="saveBtn" class="btn-primary">保存</button>
     <button type="button" id="logoutBtn" class="btn-secondary">退出登录</button>
-    <span id="saveStatus" class="save-status"></span>
   </div>
-
-  <section class="card" style="margin-top:24px;">
-    <h2>提交记录</h2>
-    <p class="hint">客户提交后，会出现在这里。点「下载」可取回客户签署的 PDF。</p>
-    <div id="submissionsBox">加载中...</div>
-  </section>
 </div>
 
 <script>
 let template = null;
+let session = null;
 let signaturePad = null;
 let currentSigTab = 'draw';
 let token = sessionStorage.getItem('admin_token') || '';
@@ -218,6 +209,46 @@ let lastPdfBlob = null;
 
 function $(id) { return document.getElementById(id); }
 
+// ==================== 路由 ====================
+function getRoute() {
+  // /s/abc123  →  { name: 'sign', sessionId: 'abc123' }
+  // /#admin    →  { name: 'admin' }
+  // /          →  { name: 'home' }
+  const path = location.pathname;
+  const m = path.match(/^\/s\/([a-z0-9]+)/i);
+  if (m) return { name: 'sign', sessionId: m[1] };
+  if (location.hash === '#admin') return { name: 'admin' };
+  return { name: 'home' };
+}
+
+function showClient() {
+  $('clientPage').classList.remove('hidden');
+  $('notFoundPage').classList.add('hidden');
+  $('loginBox').classList.add('hidden');
+  $('adminPage').classList.add('hidden');
+}
+
+function showNotFound() {
+  $('clientPage').classList.add('hidden');
+  $('notFoundPage').classList.remove('hidden');
+  $('loginBox').classList.add('hidden');
+  $('adminPage').classList.add('hidden');
+}
+
+function showAdmin() {
+  $('clientPage').classList.add('hidden');
+  $('notFoundPage').classList.add('hidden');
+  if (token) {
+    $('loginBox').classList.add('hidden');
+    $('adminPage').classList.remove('hidden');
+    loadAdminData();
+  } else {
+    $('loginBox').classList.remove('hidden');
+    $('adminPage').classList.add('hidden');
+  }
+}
+
+// ==================== CPF ====================
 function formatCpf(v) {
   const d = v.replace(/\D/g, '').slice(0, 11);
   return d.replace(/(\d{3})(\d)/, '$1.$2')
@@ -237,32 +268,40 @@ function isValidCpf(cpf) {
   return calc(9) === parseInt(d[9]) && calc(10) === parseInt(d[10]);
 }
 
-function showClient() {
-  $('clientPage').classList.remove('hidden');
-  $('loginBox').classList.add('hidden');
-  $('adminPage').classList.add('hidden');
-  history.replaceState(null, '', location.pathname);
-}
-
-function showAdmin() {
-  $('clientPage').classList.add('hidden');
-  if (token) {
-    $('loginBox').classList.add('hidden');
-    $('adminPage').classList.remove('hidden');
-    loadAdminData();
-  } else {
-    $('loginBox').classList.remove('hidden');
-    $('adminPage').classList.add('hidden');
-  }
-}
-
-async function loadTemplate() {
+// ==================== 客户页 ====================
+async function loadSession(sessionId) {
+  // 先加载模板和会话，两者都到位后再渲染
   try {
-    const res = await fetch('/api/data?action=template');
-    template = await res.json();
+    const [tRes, sRes] = await Promise.all([
+      fetch('/api/data?action=template'),
+      fetch('/api/data?action=session&id=' + encodeURIComponent(sessionId))
+    ]);
+
+    if (!sRes.ok) {
+      showNotFound();
+      return;
+    }
+
+    template = await tRes.json();
+    session = await sRes.json();
+
+    if (session.status === 'signed') {
+      // 已签署的链接，直接显示完成提示
+      renderTemplate();
+      showClient();
+      document.querySelectorAll('#clientPage input, #clientPage canvas').forEach(el => el.disabled = true);
+      if (signaturePad) signaturePad.off();
+      $('clearBtn').classList.add('hidden');
+      $('submitBtn').classList.add('hidden');
+      $('doneBox').classList.remove('hidden');
+      return;
+    }
+
     renderTemplate();
+    showClient();
   } catch (e) {
     console.error(e);
+    showNotFound();
   }
 }
 
@@ -271,30 +310,32 @@ function renderTemplate() {
   $('pageTitle').textContent = template.title;
   $('pageSubtitle').textContent = template.subtitle;
 
-  const p = new URLSearchParams(location.search);
-  const g = template.goods;
-  $('gInvoice').textContent = p.get('invoice') || g.invoice;
-  $('gBl').textContent = p.get('bl') || g.bl;
-  $('gDesc').textContent = p.get('desc') || g.description;
-  $('gQty').textContent = p.get('qty') || g.quantity;
-  $('gValue').textContent = p.get('value') || g.value;
+  const g = session.goods;
+  $('gInvoice').textContent = g.invoice || '—';
+  $('gBl').textContent = g.bl || '—';
+  $('gDesc').textContent = g.description || '—';
+  $('gQty').textContent = g.quantity || '—';
+  $('gValue').textContent = g.value || '—';
 
   const tb = $('termsBox');
   tb.innerHTML = '';
-  template.terms.forEach(t => {
+  (template.terms || []).forEach(t => {
     const el = document.createElement('p');
     el.textContent = t;
     tb.appendChild(el);
   });
 
-  $('fwdName').textContent = template.forwarder.name;
-  $('expName').textContent = template.exporter.name;
-  $('confirmText').textContent = template.confirmText;
-  $('doneMessage').textContent = template.doneMessage;
+  $('fwdName').textContent = template.forwarder?.name || '—';
+  $('expName').textContent = template.exporter?.name || '—';
+  $('confirmText').textContent = template.confirmText || '';
+  $('doneMessage').textContent = template.doneMessage || '';
 }
 
 function initSignaturePad() {
   const canvas = $('signatureCanvas');
+  if (!canvas || canvas._initialized) return;
+  canvas._initialized = true;
+
   const ratio = Math.max(window.devicePixelRatio || 1, 1);
   canvas.width = canvas.offsetWidth * ratio;
   canvas.height = canvas.offsetHeight * ratio;
@@ -328,7 +369,7 @@ function switchSigTab(ev, tab) {
 
 function getSignatureDataUrl() {
   if (currentSigTab === 'draw') {
-    if (signaturePad.isEmpty()) return null;
+    if (!signaturePad || signaturePad.isEmpty()) return null;
     return signaturePad.toDataURL('image/png');
   } else {
     const name = $('typedName').value.trim();
@@ -356,6 +397,7 @@ function checkFormReady() {
   $('submitBtn').disabled = !(name && cpf && address && agreed && hasSig);
 }
 
+// ==================== PDF 生成 ====================
 function generatePdf() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -403,13 +445,12 @@ function generatePdf() {
   doc.setFont('helvetica', 'bold');
   doc.text('Informacoes da Mercadoria', margin, y); y += 6;
   doc.setFont('helvetica', 'normal');
-  const g = template.goods;
-  const p = new URLSearchParams(location.search);
-  doc.text(`Fatura: ${p.get('invoice') || g.invoice}`, margin, y); y += 5;
-  doc.text(`BL: ${p.get('bl') || g.bl}`, margin, y); y += 5;
-  doc.text(`Descricao: ${p.get('desc') || g.description}`, margin, y); y += 5;
-  doc.text(`Quantidade: ${p.get('qty') || g.quantity}`, margin, y); y += 5;
-  doc.text(`Valor: ${p.get('value') || g.value}`, margin, y); y += 10;
+  const g = session.goods;
+  doc.text(`Fatura: ${g.invoice || '-'}`, margin, y); y += 5;
+  doc.text(`BL: ${g.bl || '-'}`, margin, y); y += 5;
+  doc.text(`Descricao: ${g.description || '-'}`, margin, y); y += 5;
+  doc.text(`Quantidade: ${g.quantity || '-'}`, margin, y); y += 5;
+  doc.text(`Valor: ${g.value || '-'}`, margin, y); y += 10;
 
   doc.setDrawColor(200);
   doc.line(margin, y, 210 - margin, y);
@@ -420,7 +461,7 @@ function generatePdf() {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
 
-  template.terms.forEach(t => {
+  (template.terms || []).forEach(t => {
     const lines = doc.splitTextToSize(t, 210 - margin * 2);
     doc.text(lines, margin, y);
     y += lines.length * 5 + 2;
@@ -432,7 +473,7 @@ function generatePdf() {
   doc.text('Despachante', margin, y); y += 5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(template.forwarder.name, margin, y); y += 12;
+  doc.text(template.forwarder?.name || '-', margin, y); y += 12;
 
   doc.setDrawColor(200);
   doc.line(margin, y, 210 - margin, y);
@@ -496,6 +537,7 @@ async function handleSubmit() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'submit',
+        sessionId: session.id,
         customerName: $('customerName').value.trim(),
         customerCpf: cpf,
         customerAddress: $('customerAddress').value.trim(),
@@ -533,8 +575,9 @@ function downloadPdf() {
   URL.revokeObjectURL(url);
 }
 
+// ==================== 管理页 ====================
 async function login(pwd) {
-  const test = await fetch('/api/data?action=submissions', {
+  const test = await fetch('/api/data?action=sessions', {
     headers: { 'Authorization': `Bearer ${pwd}` }
   });
   if (test.ok) {
@@ -546,23 +589,139 @@ async function login(pwd) {
 }
 
 async function loadAdminData() {
-  const res = await fetch('/api/data?action=template');
-  const t = await res.json();
+  // 模板
+  const tRes = await fetch('/api/data?action=template');
+  const t = await tRes.json();
   $('tTitle').value = t.title || '';
   $('tSubtitle').value = t.subtitle || '';
   $('tExporterName').value = t.exporter?.name || '';
   $('tExporterAddress').value = t.exporter?.address || '';
   $('tFwdName').value = t.forwarder?.name || '';
-  $('tInvoice').value = t.goods?.invoice || '';
-  $('tBl').value = t.goods?.bl || '';
-  $('tDesc').value = t.goods?.description || '';
-  $('tQty').value = t.goods?.quantity || '';
-  $('tValue').value = t.goods?.value || '';
   $('tTerms').value = (t.terms || []).join('\n');
   $('tConfirmText').value = t.confirmText || '';
   $('tDoneMessage').value = t.doneMessage || '';
 
+  loadSessions();
   loadSubmissions();
+}
+
+async function loadSessions() {
+  const box = $('sessionsBox');
+  box.textContent = '加载中...';
+  try {
+    const res = await fetch('/api/data?action=sessions', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) { box.textContent = '加载失败'; return; }
+    const { sessions } = await res.json();
+    if (!sessions.length) { box.textContent = '暂无会话，先在上面创建一条'; return; }
+
+    let html = '<table><thead><tr><th>状态</th><th>发票号</th><th>提单号</th><th>备注</th><th>链接</th><th>操作</th></tr></thead><tbody>';
+    sessions.forEach(s => {
+      const url = location.origin + '/s/' + s.id;
+      const statusClass = s.status === 'signed' ? 'status-signed' : 'status-pending';
+      const statusText = s.status === 'signed' ? '已签' : '未签';
+      html += `<tr>
+        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+        <td>${escapeHtml(s.goods.invoice)}</td>
+        <td>${escapeHtml(s.goods.bl)}</td>
+        <td>${escapeHtml(s.note || '')}</td>
+        <td class="link-text">/s/${s.id}</td>
+        <td>
+          <button class="btn-small copy" onclick="copyLink('${url}')">复制链接</button>
+          <button class="btn-small" onclick="openLink('${url}')">打开</button>
+          <button class="btn-small danger" onclick="deleteSession('${s.id}')">删除</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  } catch {
+    box.textContent = '加载失败';
+  }
+}
+
+function copyLink(url) {
+  navigator.clipboard.writeText(url).then(() => {
+    alert('链接已复制：\n' + url);
+  }).catch(() => {
+    prompt('复制下面的链接：', url);
+  });
+}
+
+function openLink(url) {
+  window.open(url, '_blank');
+}
+
+async function deleteSession(id) {
+  if (!confirm('确定删除这条会话？删除后链接失效。')) return;
+  const res = await fetch('/api/data', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ action: 'delete_session', id })
+  });
+  if (res.ok) {
+    loadSessions();
+  } else {
+    alert('删除失败');
+  }
+}
+
+async function createSession() {
+  const status = $('createStatus');
+  status.textContent = '创建中...';
+  status.classList.remove('error');
+
+  const data = {
+    invoice: $('nInvoice').value.trim(),
+    bl: $('nBl').value.trim(),
+    description: $('nDesc').value.trim(),
+    quantity: $('nQty').value.trim(),
+    value: $('nValue').value.trim(),
+    note: $('nNote').value.trim()
+  };
+
+  if (!data.invoice && !data.bl) {
+    status.textContent = '至少填发票号或提单号';
+    status.classList.add('error');
+    return;
+  }
+
+  const res = await fetch('/api/data', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ action: 'create_session', data })
+  });
+
+  if (res.ok) {
+    const { session } = await res.json();
+    const url = location.origin + '/s/' + session.id;
+    status.textContent = '✓ 已创建';
+    $('nInvoice').value = '';
+    $('nBl').value = '';
+    $('nDesc').value = '';
+    $('nQty').value = '';
+    $('nValue').value = '';
+    $('nNote').value = '';
+    setTimeout(() => status.textContent = '', 3000);
+    loadSessions();
+    // 自动复制到剪贴板
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('链接已生成并复制到剪贴板：\n\n' + url);
+    } catch {
+      alert('链接已生成：\n\n' + url);
+    }
+  } else {
+    status.textContent = '创建失败';
+    status.classList.add('error');
+  }
 }
 
 async function loadSubmissions() {
@@ -574,135 +733,4 @@ async function loadSubmissions() {
     });
     if (!res.ok) { box.textContent = '加载失败'; return; }
     const { submissions } = await res.json();
-    if (!submissions.length) { box.textContent = '暂无提交记录'; return; }
-
-    let html = '<table><thead><tr><th>提交时间</th><th>姓名</th><th>CPF</th><th>IP</th><th>操作</th></tr></thead><tbody>';
-    submissions.forEach(s => {
-      const time = new Date(s.submittedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-      html += `<tr>
-        <td>${time}</td>
-        <td>${escapeHtml(s.customerName)}</td>
-        <td>${escapeHtml(s.customerCpf)}</td>
-        <td>${escapeHtml(s.ip)}</td>
-        <td><button class="dl-btn" onclick="downloadSubmission('${s.id}')">下载 PDF</button></td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    box.innerHTML = html;
-  } catch {
-    box.textContent = '加载失败';
-  }
-}
-
-function escapeHtml(s) {
-  return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-}
-
-async function downloadSubmission(id) {
-  const res = await fetch(`/api/data?action=pdf&id=${id}&token=${encodeURIComponent(token)}`);
-  if (!res.ok) { alert('下载失败'); return; }
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `solicitacao-${id}.pdf`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-async function saveTemplate() {
-  const status = $('saveStatus');
-  status.textContent = '保存中...';
-  status.classList.remove('error');
-
-  const data = {
-    title: $('tTitle').value,
-    subtitle: $('tSubtitle').value,
-    exporter: {
-      name: $('tExporterName').value,
-      address: $('tExporterAddress').value
-    },
-    forwarder: { name: $('tFwdName').value },
-    goods: {
-      invoice: $('tInvoice').value,
-      bl: $('tBl').value,
-      description: $('tDesc').value,
-      quantity: $('tQty').value,
-      value: $('tValue').value
-    },
-    terms: $('tTerms').value.split('\n').filter(l => l.trim()),
-    confirmText: $('tConfirmText').value,
-    doneMessage: $('tDoneMessage').value
-  };
-
-  const res = await fetch('/api/data', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({ action: 'template', data })
-  });
-
-  if (res.ok) {
-    status.textContent = '✓ 已保存';
-    setTimeout(() => status.textContent = '', 3000);
-  } else {
-    status.textContent = '保存失败';
-    status.classList.add('error');
-  }
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-  await loadTemplate();
-  initSignaturePad();
-
-  if (location.hash === '#admin') showAdmin(); else showClient();
-  window.addEventListener('hashchange', () => {
-    if (location.hash === '#admin') showAdmin(); else showClient();
-  });
-
-  $('customerCpf').addEventListener('input', e => {
-    e.target.value = formatCpf(e.target.value);
-    e.target.classList.remove('error');
-    checkFormReady();
-  });
-  ['customerName', 'customerAddress'].forEach(id => {
-    $(id).addEventListener('input', checkFormReady);
-  });
-  $('typedName').addEventListener('input', () => {
-    $('typedPreview').textContent = $('typedName').value || '—';
-    checkFormReady();
-  });
-  $('agreeCheck').addEventListener('change', checkFormReady);
-  $('clearBtn').addEventListener('click', () => { signaturePad.clear(); checkFormReady(); });
-  $('submitBtn').addEventListener('click', handleSubmit);
-  $('downloadBtn').addEventListener('click', downloadPdf);
-
-  $('loginBtn').addEventListener('click', async () => {
-    const pwd = $('passwordInput').value;
-    if (await login(pwd)) {
-      $('loginBox').classList.add('hidden');
-      $('adminPage').classList.remove('hidden');
-      loadAdminData();
-    } else {
-      $('loginError').classList.remove('hidden');
-    }
-  });
-  $('passwordInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') $('loginBtn').click();
-  });
-  $('saveBtn').addEventListener('click', saveTemplate);
-  $('logoutBtn').addEventListener('click', () => {
-    sessionStorage.removeItem('admin_token');
-    token = '';
-    $('loginBox').classList.remove('hidden');
-    $('adminPage').classList.add('hidden');
-  });
-});
-
-window.switchSigTab = switchSigTab;
-window.downloadSubmission = downloadSubmission;
-</script>
-</body>
-</html>
+    if (!submissions.length) { box.text
