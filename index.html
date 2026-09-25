@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Solicitação de Devolução</title>
+<title>Solicitação de Devolução de Mercadoria</title>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
@@ -50,59 +50,57 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
 th { background: #f8f9fa; font-weight: 600; }
 .dl-btn { background: #2b7cff; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-.nav { text-align: center; margin-bottom: 20px; font-size: 13px; }
-.nav a { color: #2b7cff; text-decoration: none; margin: 0 8px; }
+.hint { font-size: 12px; color: #888; margin-top: -6px; margin-bottom: 10px; }
 </style>
 </head>
 <body>
 
-
-<!-- ============ 客户页 ============ -->
+<!-- ============ 客户页（纯葡语） ============ -->
 <div id="clientPage" class="container">
-  <h1 id="pageTitle">加载中...</h1>
+  <h1 id="pageTitle">Carregando...</h1>
   <p class="subtitle" id="pageSubtitle"></p>
 
   <section class="card">
-    <h2>您的信息 / Seus Dados</h2>
-    <label>姓名 / Nome <input type="text" id="customerName"></label>
+    <h2>Seus Dados</h2>
+    <label>Nome completo <input type="text" id="customerName"></label>
     <label>CPF <input type="text" id="customerCpf" maxlength="14" inputmode="numeric"></label>
-    <label>地址 / Endereço <input type="text" id="customerAddress"></label>
+    <label>Endereço <input type="text" id="customerAddress"></label>
   </section>
 
   <section class="card">
-    <h2>货物信息 / Informações da Mercadoria</h2>
+    <h2>Informações da Mercadoria</h2>
     <div class="readonly-grid">
-      <div><span>原发票号 / Fatura:</span> <b id="gInvoice">—</b></div>
-      <div><span>提单号 / BL:</span> <b id="gBl">—</b></div>
-      <div><span>货物描述 / Descrição:</span> <b id="gDesc">—</b></div>
-      <div><span>数量 / Quantidade:</span> <b id="gQty">—</b></div>
-      <div><span>价值 / Valor:</span> <b id="gValue">—</b></div>
+      <div><span>Fatura:</span> <b id="gInvoice">—</b></div>
+      <div><span>Conhecimento de Embarque (BL):</span> <b id="gBl">—</b></div>
+      <div><span>Descrição:</span> <b id="gDesc">—</b></div>
+      <div><span>Quantidade:</span> <b id="gQty">—</b></div>
+      <div><span>Valor:</span> <b id="gValue">—</b></div>
     </div>
   </section>
 
   <section class="card">
-    <h2>申请内容 / Solicitação</h2>
+    <h2>Solicitação</h2>
     <div class="terms" id="termsBox"></div>
     <p class="forwarder">
-      <strong>货代 / Despachante:</strong> <span id="fwdName">—</span><br>
-      <strong>出口商 / Exportador:</strong> <span id="expName">—</span>
+      <strong>Despachante:</strong> <span id="fwdName">—</span><br>
+      <strong>Exportador:</strong> <span id="expName">—</span>
     </p>
   </section>
 
   <section class="card">
-    <h2>签名 / Assinatura</h2>
+    <h2>Assinatura</h2>
     <div class="sig-tabs">
-      <button type="button" class="sig-tab active" onclick="switchSigTab('draw')">手写 / Desenhar</button>
-      <button type="button" class="sig-tab" onclick="switchSigTab('type')">键入 / Digitar</button>
+      <button type="button" class="sig-tab active" onclick="switchSigTab(event, 'draw')">Desenhar</button>
+      <button type="button" class="sig-tab" onclick="switchSigTab(event, 'type')">Digitar</button>
     </div>
 
     <div id="drawBox">
       <div class="signature-wrapper"><canvas id="signatureCanvas"></canvas></div>
-      <button type="button" id="clearBtn" class="btn-secondary">清除 / Limpar</button>
+      <button type="button" id="clearBtn" class="btn-secondary">Limpar</button>
     </div>
 
     <div id="typeBox" class="hidden">
-      <label>输入姓名 / Digite seu nome
+      <label>Digite seu nome completo
         <input type="text" id="typedName" placeholder="João Carlos Silva">
       </label>
       <div class="typed-sig" id="typedPreview">—</div>
@@ -113,23 +111,23 @@ th { background: #f8f9fa; font-weight: 600; }
       <span id="confirmText"></span>
     </label>
 
-    <button type="button" id="submitBtn" class="btn-primary" disabled>提交申请 / Enviar</button>
+    <button type="button" id="submitBtn" class="btn-primary" disabled>Enviar Solicitação</button>
 
     <div id="doneBox" class="done-box hidden">
-      <p>✓ 提交成功 / Enviado</p>
+      <p>✓ Solicitação enviada com sucesso</p>
       <p class="small" id="doneMessage"></p>
-      <button type="button" id="downloadBtn" class="btn-primary" style="margin-top:16px;">下载 PDF / Baixar PDF</button>
+      <button type="button" id="downloadBtn" class="btn-primary" style="margin-top:16px;">Baixar PDF</button>
     </div>
   </section>
 </div>
 
-<!-- ============ 管理页 ============ -->
+<!-- ============ 管理页（中文） ============ -->
 <div id="loginBox" class="container hidden">
   <div class="card" style="max-width:400px;margin:80px auto;">
-    <h2>管理登录 / Admin Login</h2>
-    <label>密码 / Senha <input type="password" id="passwordInput"></label>
-    <button type="button" id="loginBtn" class="btn-primary">登录 / Entrar</button>
-    <p id="loginError" class="error-text hidden">密码错误 / Senha incorreta</p>
+    <h2>管理员登录</h2>
+    <label>密码 <input type="password" id="passwordInput"></label>
+    <button type="button" id="loginBtn" class="btn-primary">登录</button>
+    <p id="loginError" class="error-text hidden">密码错误</p>
   </div>
 </div>
 
@@ -138,62 +136,86 @@ th { background: #f8f9fa; font-weight: 600; }
 
   <section class="card">
     <h2>标题</h2>
-    <label>主标题 <input type="text" id="tTitle"></label>
-    <label>副标题 <input type="text" id="tSubtitle"></label>
+    <label>主标题（客户页顶部大字）
+      <input type="text" id="tTitle">
+    </label>
+    <label>副标题（客户页顶部小字）
+      <input type="text" id="tSubtitle">
+    </label>
   </section>
 
   <section class="card">
-    <h2>甲方 / 出口商</h2>
-    <label>公司名称 <input type="text" id="tExporterName"></label>
-    <label>地址 <input type="text" id="tExporterAddress"></label>
+    <h2>出口商信息</h2>
+    <label>公司名称
+      <input type="text" id="tExporterName">
+    </label>
+    <label>公司地址
+      <input type="text" id="tExporterAddress">
+    </label>
   </section>
 
   <section class="card">
-    <h2>货代 / Despachante</h2>
-    <label>货代公司名称 <input type="text" id="tFwdName"></label>
+    <h2>货代信息</h2>
+    <label>货代公司名称
+      <input type="text" id="tFwdName">
+    </label>
   </section>
 
   <section class="card">
     <h2>货物信息</h2>
-    <label>发票号 <input type="text" id="tInvoice"></label>
-    <label>提单号 <input type="text" id="tBl"></label>
-    <label>描述 <input type="text" id="tDesc"></label>
-    <label>数量 <input type="text" id="tQty"></label>
-    <label>价值 <input type="text" id="tValue"></label>
+    <label>发票号
+      <input type="text" id="tInvoice">
+    </label>
+    <label>提单号
+      <input type="text" id="tBl">
+    </label>
+    <label>货物描述
+      <input type="text" id="tDesc">
+    </label>
+    <label>数量
+      <input type="text" id="tQty">
+    </label>
+    <label>价值
+      <input type="text" id="tValue">
+    </label>
   </section>
 
   <section class="card">
-    <h2>申请条款（每行一条）</h2>
-    <textarea id="tTerms" rows="8"></textarea>
+    <h2>申请条款（每行一条，用葡语写）</h2>
+    <p class="hint">每条会自动生成一个段落，客户看到的就是这些内容。建议用葡语填写。</p>
+    <textarea id="tTerms" rows="10"></textarea>
   </section>
 
   <section class="card">
     <h2>文案</h2>
-    <label>勾选框文字 <input type="text" id="tConfirmText"></label>
-    <label>完成提示 <textarea id="tDoneMessage" rows="3"></textarea></label>
+    <label>勾选框文字（客户签名下方那句）
+      <input type="text" id="tConfirmText">
+    </label>
+    <label>完成提示（客户提交成功后显示）
+      <textarea id="tDoneMessage" rows="3"></textarea>
+    </label>
   </section>
 
   <div class="admin-actions">
-    <button type="button" id="saveBtn" class="btn-primary">保存 / Salvar</button>
-    <button type="button" id="logoutBtn" class="btn-secondary">退出</button>
+    <button type="button" id="saveBtn" class="btn-primary">保存</button>
+    <button type="button" id="logoutBtn" class="btn-secondary">退出登录</button>
     <span id="saveStatus" class="save-status"></span>
   </div>
 
   <section class="card" style="margin-top:24px;">
     <h2>提交记录</h2>
+    <p class="hint">客户提交后，会出现在这里。点「下载」可取回客户签署的 PDF。</p>
     <div id="submissionsBox">加载中...</div>
   </section>
 </div>
 
 <script>
-// ==================== 状态 ====================
 let template = null;
 let signaturePad = null;
 let currentSigTab = 'draw';
 let token = sessionStorage.getItem('admin_token') || '';
 let lastPdfBlob = null;
 
-// ==================== 工具 ====================
 function $(id) { return document.getElementById(id); }
 
 function formatCpf(v) {
@@ -215,7 +237,6 @@ function isValidCpf(cpf) {
   return calc(9) === parseInt(d[9]) && calc(10) === parseInt(d[10]);
 }
 
-// ==================== 路由 ====================
 function showClient() {
   $('clientPage').classList.remove('hidden');
   $('loginBox').classList.add('hidden');
@@ -225,7 +246,6 @@ function showClient() {
 
 function showAdmin() {
   $('clientPage').classList.add('hidden');
-  location.hash = 'admin';
   if (token) {
     $('loginBox').classList.add('hidden');
     $('adminPage').classList.remove('hidden');
@@ -236,7 +256,6 @@ function showAdmin() {
   }
 }
 
-// ==================== 客户页 ====================
 async function loadTemplate() {
   try {
     const res = await fetch('/api/data?action=template');
@@ -298,10 +317,10 @@ function initSignaturePad() {
   });
 }
 
-function switchSigTab(tab) {
+function switchSigTab(ev, tab) {
   currentSigTab = tab;
   document.querySelectorAll('.sig-tab').forEach(el => el.classList.remove('active'));
-  event.target.classList.add('active');
+  if (ev && ev.target) ev.target.classList.add('active');
   $('drawBox').classList.toggle('hidden', tab !== 'draw');
   $('typeBox').classList.toggle('hidden', tab !== 'type');
   checkFormReady();
@@ -314,7 +333,6 @@ function getSignatureDataUrl() {
   } else {
     const name = $('typedName').value.trim();
     if (!name) return null;
-    // 用 Canvas 渲染键入签名为图片
     const c = document.createElement('canvas');
     c.width = 400; c.height = 120;
     const ctx = c.getContext('2d');
@@ -338,7 +356,6 @@ function checkFormReady() {
   $('submitBtn').disabled = !(name && cpf && address && agreed && hasSig);
 }
 
-// ==================== PDF 生成 ====================
 function generatePdf() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -352,7 +369,7 @@ function generatePdf() {
   const margin = 18;
   let y = 20;
 
-  doc.setFontSize(16);
+  doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
   doc.text(template.subtitle, 105, y, { align: 'center' });
   y += 7;
@@ -447,23 +464,21 @@ function generatePdf() {
   return doc;
 }
 
-// ==================== 提交 ====================
 async function handleSubmit() {
   const cpf = $('customerCpf').value.trim();
   if (!isValidCpf(cpf)) {
-    alert('CPF invalido / CPF 格式无效');
+    alert('CPF inválido. Por favor, verifique.');
     $('customerCpf').classList.add('error');
     return;
   }
   if (!getSignatureDataUrl()) {
-    alert('Por favor, assine primeiro. / 请先签名。');
+    alert('Por favor, assine primeiro.');
     return;
   }
 
   $('submitBtn').disabled = true;
-  $('submitBtn').textContent = '提交中... / Enviando...';
+  $('submitBtn').textContent = 'Enviando...';
 
-  // 获取 IP
   try {
     const ipRes = await fetch('https://api.ipify.org?format=json');
     window._clientIp = (await ipRes.json()).ip;
@@ -475,7 +490,6 @@ async function handleSubmit() {
   lastPdfBlob = doc.output('blob');
   const pdfBase64 = await blobToBase64(lastPdfBlob);
 
-  // 提交到后台
   try {
     await fetch('/api/data?action=submit', {
       method: 'POST',
@@ -491,10 +505,9 @@ async function handleSubmit() {
       })
     });
   } catch (e) {
-    console.error('提交失败', e);
+    console.error('Erro ao enviar', e);
   }
 
-  // 禁用表单
   document.querySelectorAll('#clientPage input, #clientPage canvas').forEach(el => el.disabled = true);
   if (signaturePad) signaturePad.off();
   $('clearBtn').classList.add('hidden');
@@ -520,12 +533,7 @@ function downloadPdf() {
   URL.revokeObjectURL(url);
 }
 
-// ==================== 管理页 ====================
 async function login(pwd) {
-  const res = await fetch('/api/data?action=template', {
-    headers: { 'Authorization': `Bearer ${pwd}` }
-  });
-  // 用一个需要鉴权的请求来验证密码
   const test = await fetch('/api/data?action=submissions', {
     headers: { 'Authorization': `Bearer ${pwd}` }
   });
@@ -538,7 +546,6 @@ async function login(pwd) {
 }
 
 async function loadAdminData() {
-  // 模板
   const res = await fetch('/api/data?action=template');
   const t = await res.json();
   $('tTitle').value = t.title || '';
@@ -569,7 +576,7 @@ async function loadSubmissions() {
     const { submissions } = await res.json();
     if (!submissions.length) { box.textContent = '暂无提交记录'; return; }
 
-    let html = '<table><thead><tr><th>时间</th><th>姓名</th><th>CPF</th><th>IP</th><th>操作</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>提交时间</th><th>姓名</th><th>CPF</th><th>IP</th><th>操作</th></tr></thead><tbody>';
     submissions.forEach(s => {
       const time = new Date(s.submittedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
       html += `<tr>
@@ -577,7 +584,7 @@ async function loadSubmissions() {
         <td>${escapeHtml(s.customerName)}</td>
         <td>${escapeHtml(s.customerCpf)}</td>
         <td>${escapeHtml(s.ip)}</td>
-        <td><button class="dl-btn" onclick="downloadSubmission('${s.id}')">下载</button></td>
+        <td><button class="dl-btn" onclick="downloadSubmission('${s.id}')">下载 PDF</button></td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -646,18 +653,15 @@ async function saveTemplate() {
   }
 }
 
-// ==================== 初始化 ====================
 document.addEventListener('DOMContentLoaded', async () => {
   await loadTemplate();
   initSignaturePad();
 
-  // 路由
   if (location.hash === '#admin') showAdmin(); else showClient();
   window.addEventListener('hashchange', () => {
     if (location.hash === '#admin') showAdmin(); else showClient();
   });
 
-  // 客户页事件
   $('customerCpf').addEventListener('input', e => {
     e.target.value = formatCpf(e.target.value);
     e.target.classList.remove('error');
@@ -675,7 +679,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('submitBtn').addEventListener('click', handleSubmit);
   $('downloadBtn').addEventListener('click', downloadPdf);
 
-  // 管理页事件
   $('loginBtn').addEventListener('click', async () => {
     const pwd = $('passwordInput').value;
     if (await login(pwd)) {
@@ -698,10 +701,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 });
 
-// 暴露给 inline onclick
 window.switchSigTab = switchSigTab;
-window.showClient = showClient;
-window.showAdmin = showAdmin;
 window.downloadSubmission = downloadSubmission;
 </script>
 </body>
