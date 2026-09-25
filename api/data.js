@@ -1,23 +1,28 @@
 // api/data.js
-// 统一数据接口
-// GET  /api/data?action=template              → 读模板（公开）
-// POST /api/data  { action:'submit', ... }    → 客户提交（公开）
-// POST /api/data  { action:'template', data } → 写模板（需密码）
-// GET  /api/data?action=submissions&token=xxx → 列出提交（需密码）
-// GET  /api/data?action=pdf&id=xxx&token=xxx  → 取单个 PDF（需密码）
+// API de dados unificada
+// GET  /api/data?action=template              → ler template (público)
+// POST /api/data  { action:'submit', ... }    → envio do cliente (público)
+// POST /api/data  { action:'template', data } → salvar template (senha)
+// GET  /api/data?action=submissions&token=xxx → listar envios (senha)
+// GET  /api/data?action=pdf&id=xxx&token=xxx  → baixar PDF (senha)
 
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const kv = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
+});
 
 const TEMPLATE_KEY = 'signature_template';
 const SUBMISSION_PREFIX = 'submission:';
 const SUBMISSION_LIST = 'submission_ids';
 
 const DEFAULT_TEMPLATE = {
-  title: '退运申请意向书',
-  subtitle: 'Solicitação de Devolução de Mercadoria',
+  title: 'Solicitação de Devolução de Mercadoria',
+  subtitle: 'Termo de Intenção de Devolução',
   exporter: {
     name: 'Shenzhen ABC Electronics Co., Ltd.',
-    address: '深圳市宝安区XX路XX号'
+    address: 'Bao\'an District, Shenzhen, China'
   },
   forwarder: {
     name: 'ABC Logística Internacional Ltda.'
@@ -25,19 +30,19 @@ const DEFAULT_TEMPLATE = {
   goods: {
     invoice: 'INV-2026-001',
     bl: 'BL-123456',
-    description: '电子配件 / Componentes Eletrônicos',
+    description: 'Componentes Eletrônicos',
     quantity: '500 units',
     value: 'USD 12,500.00'
   },
   terms: [
-    '因多种原因延误未能及时补充巴西进口关税所需的信息/文件，导致上述货物在巴西海关清关延误并被要求强制退回。现本人正式向出口商提出退货退款申请，并确认：',
-    '退运原因是本人自身清关延误，与货物质量或出口商履约无关；',
-    '本人授权货代公司代表本人办理退运相关手续；',
-    '退运产生的巴西境内费用及国际运费由本人承担；',
-    '出口商在收到货物实际离境巴西的证明后，启动退款流程。'
+    'Devido a diversos atrasos, não foi possível complementar tempestivamente as informações/documentos exigidos pela alfândega brasileira para o pagamento dos tributos de importação, resultando na retenção da mercadoria acima descrita pela Receita Federal do Brasil e na sua devolução obrigatória.',
+    'O motivo da devolução é o atraso no desembaraço aduaneiro de responsabilidade exclusiva do importador, não tendo relação com a qualidade da mercadoria ou com o cumprimento das obrigações do exportador;',
+    'O importador autoriza o despachante aduaneiro a representá-lo na execução dos procedimentos relativos à devolução;',
+    'As despesas incorridas no Brasil e o frete internacional decorrentes da devolução correrão por conta do importador;',
+    'O exportador iniciará o processo de reembolso após receber a comprovação de que a mercadoria deixou efetivamente o território brasileiro.'
   ],
-  confirmText: '本人确认已阅读并同意上述条款 / Confirmo que li e concordo com os termos acima',
-  doneMessage: '请截图本页面并发送给您的业务对接人。\nPor favor, tire um print desta tela e envie ao seu contato comercial.',
+  confirmText: 'Confirmo que li e concordo com os termos acima.',
+  doneMessage: 'Por favor, tire um print desta tela e envie ao seu contato comercial.',
   updatedAt: null
 };
 
@@ -56,9 +61,8 @@ export default async function handler(req, res) {
 
   const action = req.query.action || (req.body && req.body.action);
 
-  // ============ 公开接口 ============
+  // ============ Endpoints públicos ============
 
-  // 读模板
   if (action === 'template' && req.method === 'GET') {
     try {
       const t = await kv.get(TEMPLATE_KEY);
@@ -69,7 +73,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // 客户提交
   if (action === 'submit' && req.method === 'POST') {
     try {
       const body = req.body || {};
@@ -108,13 +111,12 @@ export default async function handler(req, res) {
     }
   }
 
-  // ============ 需要鉴权的接口 ============
+  // ============ Endpoints protegidos ============
 
   if (!checkAuth(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // 写模板
   if (action === 'template' && req.method === 'POST') {
     try {
       const incoming = (req.body && req.body.data) || {};
@@ -131,7 +133,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // 列出提交
   if (action === 'submissions' && req.method === 'GET') {
     try {
       const ids = await kv.lrange(SUBMISSION_LIST, 0, 199);
@@ -156,7 +157,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // 取单个 PDF
   if (action === 'pdf' && req.method === 'GET') {
     try {
       const { id } = req.query;
