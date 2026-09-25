@@ -733,4 +733,147 @@ async function loadSubmissions() {
     });
     if (!res.ok) { box.textContent = '加载失败'; return; }
     const { submissions } = await res.json();
-    if (!submissions.length) { box.text
+    if (!submissions.length) { box.textContent = '暂无提交记录'; return; }
+
+    let html = '<table><thead><tr><th>提交时间</th><th>会话</th><th>姓名</th><th>CPF</th><th>IP</th><th>操作</th></tr></thead><tbody>';
+    submissions.forEach(s => {
+      const time = new Date(s.submittedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      html += `<tr>
+        <td>${time}</td>
+        <td class="link-text">/s/${s.sessionId || '-'}</td>
+        <td>${escapeHtml(s.customerName)}</td>
+        <td>${escapeHtml(s.customerCpf)}</td>
+        <td>${escapeHtml(s.ip)}</td>
+        <td><button class="btn-small" onclick="downloadSubmission('${s.id}')">下载 PDF</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  } catch {
+    box.textContent = '加载失败';
+  }
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+async function downloadSubmission(id) {
+  const res = await fetch(`/api/data?action=pdf&id=${id}&token=${encodeURIComponent(token)}`);
+  if (!res.ok) { alert('下载失败'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `solicitacao-${id}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function saveTemplate() {
+  const status = $('saveStatus');
+  status.textContent = '保存中...';
+  status.classList.remove('error');
+
+  const data = {
+    title: $('tTitle').value,
+    subtitle: $('tSubtitle').value,
+    exporter: {
+      name: $('tExporterName').value,
+      address: $('tExporterAddress').value
+    },
+    forwarder: { name: $('tFwdName').value },
+    terms: $('tTerms').value.split('\n').filter(l => l.trim()),
+    confirmText: $('tConfirmText').value,
+    doneMessage: $('tDoneMessage').value
+  };
+
+  const res = await fetch('/api/data', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ action: 'template', data })
+  });
+
+  if (res.ok) {
+    status.textContent = '✓ 已保存';
+    setTimeout(() => status.textContent = '', 3000);
+  } else {
+    status.textContent = '保存失败';
+    status.classList.add('error');
+  }
+}
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', async () => {
+  const route = getRoute();
+
+  if (route.name === 'sign') {
+    initSignaturePad();
+    await loadSession(route.sessionId);
+  } else if (route.name === 'admin') {
+    showAdmin();
+  } else {
+    // 根路径：显示提示（也可以重定向到 admin，但客户不应该看到）
+    document.body.innerHTML = '<div style="text-align:center;padding:80px 20px;color:#888;">Página não disponível.<br><small>Este link não é válido.</small></div>';
+    return;
+  }
+
+  // 客户页事件
+  $('customerCpf').addEventListener('input', e => {
+    e.target.value = formatCpf(e.target.value);
+    e.target.classList.remove('error');
+    checkFormReady();
+  });
+  ['customerName', 'customerAddress'].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('input', checkFormReady);
+  });
+  $('typedName').addEventListener('input', () => {
+    $('typedPreview').textContent = $('typedName').value || '—';
+    checkFormReady();
+  });
+  $('agreeCheck').addEventListener('change', checkFormReady);
+  $('clearBtn').addEventListener('click', () => { signaturePad.clear(); checkFormReady(); });
+  $('submitBtn').addEventListener('click', handleSubmit);
+  $('downloadBtn').addEventListener('click', downloadPdf);
+
+  // 管理页事件
+  $('loginBtn').addEventListener('click', async () => {
+    const pwd = $('passwordInput').value;
+    if (await login(pwd)) {
+      $('loginBox').classList.add('hidden');
+      $('adminPage').classList.remove('hidden');
+      loadAdminData();
+    } else {
+      $('loginError').classList.remove('hidden');
+    }
+  });
+  $('passwordInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') $('loginBtn').click();
+  });
+  $('createSessionBtn').addEventListener('click', createSession);
+  $('saveTemplateBtn').addEventListener('click', saveTemplate);
+  $('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem('admin_token');
+    token = '';
+    $('loginBox').classList.remove('hidden');
+    $('adminPage').classList.add('hidden');
+  });
+
+  window.addEventListener('hashchange', () => {
+    const r = getRoute();
+    if (r.name === 'admin') showAdmin();
+  });
+});
+
+window.switchSigTab = switchSigTab;
+window.copyLink = copyLink;
+window.openLink = openLink;
+window.deleteSession = deleteSession;
+window.downloadSubmission = downloadSubmission;
+</script>
+</body>
+</html>
