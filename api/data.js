@@ -1,11 +1,3 @@
-// api/data.js
-// API de dados unificada
-// GET  /api/data?action=template              → ler template (público)
-// POST /api/data  { action:'submit', ... }    → envio do cliente (público)
-// POST /api/data  { action:'template', data } → salvar template (senha)
-// GET  /api/data?action=submissions&token=xxx → listar envios (senha)
-// GET  /api/data?action=pdf&id=xxx&token=xxx  → baixar PDF (senha)
-
 import { Redis } from '@upstash/redis';
 
 const kv = new Redis({
@@ -14,6 +6,8 @@ const kv = new Redis({
 });
 
 const TEMPLATE_KEY = 'signature_template';
+const SESSION_PREFIX = 'session:';
+const SESSION_LIST = 'session_list';
 const SUBMISSION_PREFIX = 'submission:';
 const SUBMISSION_LIST = 'submission_ids';
 
@@ -26,13 +20,6 @@ const DEFAULT_TEMPLATE = {
   },
   forwarder: {
     name: 'ABC Logística Internacional Ltda.'
-  },
-  goods: {
-    invoice: 'INV-2026-001',
-    bl: 'BL-123456',
-    description: 'Componentes Eletrônicos',
-    quantity: '500 units',
-    value: 'USD 12,500.00'
   },
   terms: [
     'Devido a diversos atrasos, não foi possível complementar tempestivamente as informações/documentos exigidos pela alfândega brasileira para o pagamento dos tributos de importação, resultando na retenção da mercadoria acima descrita pela Receita Federal do Brasil e na sua devolução obrigatória.',
@@ -53,6 +40,10 @@ function checkAuth(req) {
   return token && token === process.env.ADMIN_PASSWORD;
 }
 
+function genId() {
+  return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -61,8 +52,9 @@ export default async function handler(req, res) {
 
   const action = req.query.action || (req.body && req.body.action);
 
-  // ============ Endpoints públicos ============
+  // ============ 公开接口 ============
 
+  // 读全局模板（标题、条款、文案）
   if (action === 'template' && req.method === 'GET') {
     try {
       const t = await kv.get(TEMPLATE_KEY);
@@ -73,10 +65,26 @@ export default async function handler(req, res) {
     }
   }
 
+  // 读会话（客户页加载时调用）
+  if (action === 'session' && req.method === 'GET') {
+    try {
+      const { id } = req.query;
+      if (!id) return res.status(400).json({ error: 'Missing id' });
+      const s = await kv.get(SESSION_PREFIX + id);
+      if (!s) return res.status(404).json({ error: 'Session not found' });
+      return res.status(200).json(s);
+    } catch (err) {
+      console.error('KV read session error:', err);
+      return res.status(500).json({ error: 'Failed to read session' });
+    }
+  }
+
+  // 客户提交
   if (action === 'submit' && req.method === 'POST') {
     try {
       const body = req.body || {};
       const {
+        sessionId,
         customerName,
         customerCpf,
         customerAddress,
@@ -85,14 +93,19 @@ export default async function handler(req, res) {
         submittedAt
       } = body;
 
-      if (!customerName || !customerCpf) {
+      if (!sessionId || !customerName || !customerCpf) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
+
+      // 检查 session 是否存在
+      const s = await kv.get(SESSION_PREFIX + sessionId);
+      if (!s) return res.status(404).json({ error: 'Session not found' });
 
       const id = `sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
       const record = {
         id,
+        sessionId,
         customerName,
         customerCpf,
         customerAddress: customerAddress || '',
@@ -104,6 +117,12 @@ export default async function handler(req, res) {
       await kv.set(SUBMISSION_PREFIX + id, record);
       await kv.lpush(SUBMISSION_LIST, id);
 
+      // 更新 session 状态
+      s.status = 'signed';
+      s.submittedAt = record.submittedAt;
+      s.submissionId = id;
+      await kv.set(SESSION_PREFIX + sessionId, s);
+
       return res.status(200).json({ ok: true, id });
     } catch (err) {
       console.error('Submit error:', err);
@@ -111,12 +130,13 @@ export default async function handler(req, res) {
     }
   }
 
-  // ============ Endpoints protegidos ============
+  // ============ 需要鉴权的接口 ============
 
   if (!checkAuth(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // 写模板
   if (action === 'template' && req.method === 'POST') {
     try {
       const incoming = (req.body && req.body.data) || {};
@@ -133,6 +153,66 @@ export default async function handler(req, res) {
     }
   }
 
+  // 创建会话
+  if (action === 'create_session' && req.method === 'POST') {
+    try {
+      const incoming = (req.body && req.body.data) || {};
+      const id = genId();
+      const session = {
+        id,
+        goods: {
+          invoice: incoming.invoice || '',
+          bl: incoming.bl || '',
+          description: incoming.description || '',
+          quantity: incoming.quantity || '',
+          value: incoming.value || ''
+        },
+        note: incoming.note || '',
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        submittedAt: null,
+        submissionId: null
+      };
+      await kv.set(SESSION_PREFIX + id, session);
+      await kv.lpush(SESSION_LIST, id);
+      return res.status(200).json({ ok: true, session });
+    } catch (err) {
+      console.error('Create session error:', err);
+      return res.status(500).json({ error: 'Failed to create session' });
+    }
+  }
+
+  // 列出会话
+  if (action === 'sessions' && req.method === 'GET') {
+    try {
+      const ids = await kv.lrange(SESSION_LIST, 0, 199);
+      const records = [];
+      for (const id of ids) {
+        const s = await kv.get(SESSION_PREFIX + id);
+        if (s) records.push(s);
+      }
+      return res.status(200).json({ sessions: records });
+    } catch (err) {
+      console.error('List sessions error:', err);
+      return res.status(500).json({ error: 'Failed to list sessions' });
+    }
+  }
+
+  // 删除会话
+  if (action === 'delete_session' && req.method === 'POST') {
+    try {
+      const { id } = req.body || {};
+      if (!id) return res.status(400).json({ error: 'Missing id' });
+      await kv.del(SESSION_PREFIX + id);
+      await kv.lrem(SESSION_LIST, 0, id);
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error('Delete session error:', err);
+      return res.status(500).json({ error: 'Failed to delete session' });
+    }
+  }
+
+  // 列出提交
   if (action === 'submissions' && req.method === 'GET') {
     try {
       const ids = await kv.lrange(SUBMISSION_LIST, 0, 199);
@@ -142,6 +222,7 @@ export default async function handler(req, res) {
         if (r) {
           records.push({
             id: r.id,
+            sessionId: r.sessionId,
             customerName: r.customerName,
             customerCpf: r.customerCpf,
             customerAddress: r.customerAddress,
@@ -157,6 +238,7 @@ export default async function handler(req, res) {
     }
   }
 
+  // 取单个 PDF
   if (action === 'pdf' && req.method === 'GET') {
     try {
       const { id } = req.query;
